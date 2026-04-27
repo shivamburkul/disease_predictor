@@ -1,0 +1,17 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/
+
+# IDE
+.vscode/
+.idea/
+
+# Dump files (optional)
+project_full_text_dump.txt
+dump_project_to_text.py

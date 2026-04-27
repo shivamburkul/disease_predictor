@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MediMind AI | Advanced Medical Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <canvas id="canvas-bg"></canvas>
+    <div class="gradient-orb orb-1"></div>
+    <div class="gradient-orb orb-2"></div>
+    <div class="gradient-orb orb-3"></div>
+
+    <div class="app-container">
+        <aside class="sidebar glass-panel">
+            <div class="sidebar-header">
+                <div class="logo-wrapper">
+                    <div class="logo-icon">
+                        <i class="fas fa-brain"></i>
+                        <div class="pulse-ring"></div>
+                    </div>
+                    <div class="logo-text">
+                        <span class="logo-badge">AI-POWERED</span>
+                        <h1>MediMind<span>AI</span></h1>
+                    </div>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot online"></div>
+                    <span>Active</span>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <i class="fas fa-stethoscope"></i>
+                    <div class="stat-info">
+                        <span class="stat-value">24/7</span>
+                        <span class="stat-label">Available</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-chart-line"></i>
+                    <div class="stat-info">
+                        <span class="stat-value">98%</span>
+                        <span class="stat-label">Accuracy</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="prompt-section">
+                <div class="section-header">
+                    <i class="fas fa-bolt"></i>
+                    <span>Quick Start</span>
+                </div>
+                <div class="prompt-grid" id="prompt-list">
+                    {% for prompt in prompts %}
+                    <button class="prompt-chip" data-prompt="{{ prompt }}">
+                        <i class="fas fa-comment-medical"></i>
+                        <span>{{ prompt }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="safety-notice">
+                <i class="fas fa-shield-heart"></i>
+                <div>
+                    <strong>Emergency Warning</strong>
+                    <p>Chest pain, breathing difficulty, severe bleeding, or sudden confusion require immediate emergency care.</p>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="disclaimer">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Educational tool only. Not a substitute for professional medical advice.</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="chat-main">
+            <div class="chat-header glass-panel">
+                <div class="header-info">
+                    <div class="ai-avatar">
+                        <i class="fas fa-robot"></i>
+                        <div class="ai-status"></div>
+                    </div>
+                    <div>
+                        <h2>Medical Assistant</h2>
+                        <p>
+                            <i class="fas fa-circle" style="font-size:8px;color:#10b981;"></i>
+                            Ready to help &nbsp;&middot;&nbsp;
+                            <span id="active-model-badge" class="active-model-badge">ML Mode</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button id="clear-btn" class="icon-btn" title="Clear conversation">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                    <button id="refresh-btn" class="icon-btn" title="New session">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+                <div class="welcome-screen">
+                    <div class="welcome-icon">
+                        <i class="fas fa-hand-sparkles"></i>
+                    </div>
+                    <h3>Welcome to MediMind AI</h3>
+                    <p>Describe your symptoms, ask a medical question, or share what you're experiencing.</p>
+                    <div class="welcome-tips">
+                        <div class="tip"><i class="fas fa-thermometer-half"></i> "I have a fever and headache"</div>
+                        <div class="tip"><i class="fas fa-lungs"></i> "Cough and sore throat for 3 days"</div>
+                        <div class="tip"><i class="fas fa-brain"></i> "What causes migraines?"</div>
+                        <div class="tip"><i class="fas fa-question-circle"></i> "When should I see a doctor?"</div>
+                    </div>
+                </div>
+            </div>
+
+            <form class="composer-wrapper" id="composer">
+                <div class="input-container glass-panel">
+                    <textarea id="user-input" rows="1"
+                        placeholder="Type your symptoms or question... (Shift+Enter for new line)"></textarea>
+                    <div class="input-actions">
+                        <button type="button" class="attach-btn" disabled>
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        <button type="submit" id="send-btn" class="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                            <span>Send</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="input-hint">
+                    <i class="fas fa-keyboard"></i>
+                    <span>Enter to send &nbsp;&middot;&nbsp; Shift+Enter for new line</span>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
