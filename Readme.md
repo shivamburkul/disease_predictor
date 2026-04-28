@@ -37,7 +37,7 @@ medical_chatbot/
 ├── requirements.txt              # Python dependencies
 │
 ├── data/                         # ⚠️  NOT included — download manually (see below)
-│   ├── Final_Augmented_dataset_Diseases_and_Symptoms.csv
+│   ├── symptoms_diseases.csv
 │   └── medquad.csv
 │
 ├── model/                        # Auto-created on training
@@ -79,11 +79,16 @@ medical_chatbot/
 | Detail | Info |
 |---|---|
 | **Source** | Kaggle — [Diseases and Symptoms Dataset](https://www.kaggle.com/datasets/dhivyeshrk/diseases-and-symptoms-dataset) |
-| **File name** | `Final_Augmented_dataset_Diseases_and_Symptoms.csv` |
+| **Kaggle file name** | `Final_Augmented_dataset_Diseases_and_Symptoms.csv` |
 | **Rows** | ~246,000 (augmented) |
 | **Diseases** | 773 |
 | **Symptoms** | 377 (one-hot encoded columns) |
 | **Size** | ~190.79 MB |
+
+> ⚠️ **Important — Rename the file after downloading:**
+> Kaggle downloads the file as `Final_Augmented_dataset_Diseases_and_Symptoms.csv`.
+> You **must rename it** to `symptoms_diseases.csv` before placing it in the `data/` folder.
+> The app and training script both expect this exact filename. If the file is not renamed, symptom vocabulary will not load and training will fail.
 
 ### 2. MedQuAD — Medical Q&A Dataset
 
@@ -99,8 +104,8 @@ medical_chatbot/
 ```
 medical_chatbot/
 └── data/
-    ├── Final_Augmented_dataset_Diseases_and_Symptoms.csv   ← from Kaggle
-    └── medquad.csv                                          ← from MedQuAD
+    ├── symptoms_diseases.csv   ← renamed from Final_Augmented_dataset_Diseases_and_Symptoms.csv
+    └── medquad.csv             ← from MedQuAD (no rename needed)
 ```
 
 ---
@@ -140,7 +145,7 @@ pip install -r requirements.txt
 
 ### 4. Add the Datasets
 
-Download both datasets (see above) and place them in the `data/` folder.
+Download both datasets (see above), **rename the disease-symptom CSV to `symptoms_diseases.csv`**, and place both files in the `data/` folder.
 
 ### 5. Train the Models
 
