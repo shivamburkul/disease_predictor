@@ -275,3 +275,26 @@ def _trim(s: str, max_words: int = 25) -> str:
     if len(words) <= max_words:
         return s
     return " ".join(words[:max_words]) + "..."
+
+def build_model_not_ready_response(symptoms: list[str]) -> dict:
+    """Shown when user reports symptoms but ML model has not been trained yet."""
+    sym_str = ", ".join(symptoms[:5]) if symptoms else "your symptoms"
+    return _base(
+        "unknown",
+        "Disease Model Not Ready",
+        f"I detected your symptoms ({sym_str}), but the disease prediction model hasn't been trained yet.",
+        sections=[{
+            "heading": "How to enable disease prediction",
+            "points": [
+                "Step 1: Place 'Final_Augmented_dataset_Diseases_and_Symptoms.csv' in the data/ folder "
+                "(rename it to 'symptoms_diseases.csv').",
+                "Step 2: Place 'medquad.csv' in the data/ folder.",
+                "Step 3: Run: python train_model.py",
+                "Step 4: Restart the app: python app.py",
+                "Training takes 3-8 minutes. After that, disease prediction will work for any symptoms you describe.",
+            ],
+        }],
+        urgency="low",
+        matched_symptoms=symptoms,
+        source="system",
+    )

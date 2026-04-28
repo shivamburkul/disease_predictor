@@ -1,37 +1,5 @@
 from __future__ import annotations
 
-"""
-train_model.py  —  FINAL FIXED & FAST version
-==============================================
-
-WHAT CHANGED vs previous version and WHY
-─────────────────────────────────────────
-PROBLEM 1 – UnboundLocalError: X_svc_train  (first crash you saw)
-  Cause : _stratified_split_with_singletons crashed internally when y_train
-          contained classes with count=1 (after the main 80/20 split).
-          The 4 return variables were never assigned → UnboundLocalError.
-  Fix   : Re-encode y to compact 0..K-1 with LabelEncoder before np.bincount,
-          so singleton detection is always correct regardless of label gaps.
-
-PROBLEM 2 – Stuck for 30+ min on SGDClassifier / LogisticRegression calibration
-  Cause : LinearSVC on 197K rows takes 10-20 min.
-          Replacing it with SGDClassifier still hangs because the
-          LogisticRegression calibrator (773 classes x 39K rows) takes
-          30-60+ min with any standard solver (verified by benchmarking).
-  Fix   : Remove the SVC/SGD model + calibration step entirely.
-          ExtraTrees and RandomForest already output probabilities natively,
-          they need NO calibration step at all. A 2-model soft-voting ensemble
-          gives equivalent accuracy and FINISHES in 3-8 minutes.
-
-EXPECTED TRAINING TIME
-  [1/2] ExtraTrees  150 trees, n_jobs=-1 : ~2-5 min
-  [2/2] RandomForest 100 trees, n_jobs=-1: ~1-3 min
-  Total                                   : ~3-8 min  FINISHES
-
-EXPECTED ACCURACY (unchanged from design)
-  Top-1 ~70-77 %   Top-3 ~83-90 %
-"""
-
 import csv
 import gc
 import pickle

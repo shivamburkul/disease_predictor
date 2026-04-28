@@ -23,8 +23,10 @@ MODEL_DIR = BASE_DIR / "model"
 
 
 class QAMatcher:
-    # Minimum cosine similarity to return a result
-    THRESHOLD = 0.12
+    # Minimum cosine similarity to return a result.
+    # Raised from 0.12 → 0.18 to reduce false positives on symptom messages
+    # that would otherwise get matched to unrelated QA entries.
+    THRESHOLD = 0.18
 
     def __init__(self, csv_path: str = None):
         if csv_path is None:

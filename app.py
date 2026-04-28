@@ -15,6 +15,7 @@ from utils.response_generator import (
     build_disease_response,
     build_error_response,
     build_greeting_response,
+    build_model_not_ready_response,
     build_need_more_details_response,
     build_non_medical_response,
     build_pattern_response,
@@ -29,7 +30,6 @@ MEDQUAD_CSV = DATA_DIR / "medquad.csv"
 
 app = Flask(__name__)
 
-# Detect pasted dataset rows (25+ comma-separated items)
 DATA_DUMP_RE = re.compile(r"(?:\w[\w\s\-()']*,){25,}\w[\w\s\-()']*")
 
 URGENT_SINGLE_SYMPTOMS = {
@@ -55,14 +55,12 @@ def _csv_is_real(path: Path) -> bool:
 
 
 def _load_symptoms_from_csv(path: Path) -> list[str]:
-    """Load symptom column names from the one-hot CSV as the symptom vocabulary."""
     if not _csv_is_real(path):
         return []
     try:
         import pandas as pd
         header = pd.read_csv(path, nrows=0)
         cols = header.columns.tolist()
-        # Find disease column and exclude it
         disease_col = None
         for c in cols:
             low = c.lower().strip()
@@ -75,13 +73,16 @@ def _load_symptoms_from_csv(path: Path) -> list[str]:
         return []
 
 
-# Load symptom vocabulary from CSV columns
 csv_symptoms = _load_symptoms_from_csv(SYMPTOM_CSV)
 load_symptom_list(csv_symptoms)
 print(f"Symptom vocabulary loaded: {len(csv_symptoms)} terms")
 
 predictor = DiseasePredictor()
 qa_matcher = QAMatcher(str(MEDQUAD_CSV))
+
+MODEL_READY = predictor.model is not None
+if not MODEL_READY:
+    print("WARNING: Disease model not found. Run train_model.py to enable disease prediction.")
 
 
 @app.route("/")
@@ -91,7 +92,11 @@ def index():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok"})
+    return jsonify({
+        "status": "ok",
+        "model_ready": MODEL_READY,
+        "qa_ready": len(qa_matcher.entries) > 0,
+    })
 
 
 @app.route("/chat", methods=["POST"])
@@ -120,7 +125,44 @@ def chat():
         return jsonify(build_error_response(f"Server error: {exc}")), 500
 
 
+# ── Routing helpers ───────────────────────────────────────────────────────────
+
+def _is_disease_query(message: str) -> bool:
+    """True if the question is asking 'what disease could this be' type."""
+    msg = normalize_text(message)
+    patterns = [
+        r"\bwhat (disease|condition|illness|infection|disorder)\b",
+        r"\bwhich disease\b",
+        r"\bdo i have\b",
+        r"\bwhat (could|might|could it) be\b",
+        r"\bwhat is (wrong|happening)\b",
+        r"\bdiagnos\w*\b",
+    ]
+    return any(re.search(p, msg) for p in patterns)
+
+
+def _run_prediction(symptoms: list[str], user_message: str) -> dict | None:
+    """
+    Run ML prediction. Returns a built response dict or None if no usable result.
+    Returns a special 'model_not_ready' response if model not trained.
+    """
+    if not MODEL_READY:
+        return None
+
+    pred = predictor.predict(symptoms, user_text=user_message)
+
+    if pred.get("ml_reliable"):
+        return build_disease_response(pred)
+    if pred.get("response_eligible"):
+        return build_disease_response(pred)
+    if pred.get("matched_feature_count", 0) >= 1 and pred.get("confidence", 0) >= 0.02:
+        return build_pattern_response(pred)
+
+    return None
+
+
 def _route(user_message: str, intent: str, symptoms: list[str]) -> dict:
+
     # ── Greeting ──────────────────────────────────────────────────────────────
     if intent == "greeting":
         return build_greeting_response()
@@ -128,29 +170,6 @@ def _route(user_message: str, intent: str, symptoms: list[str]) -> dict:
     # ── Non-medical ───────────────────────────────────────────────────────────
     if intent == "non_medical":
         return build_non_medical_response(user_message)
-
-    # ── Medical question ──────────────────────────────────────────────────────
-    if intent == "question":
-        # Try QA model first
-        faq = qa_matcher.get_answer(user_message)
-        if faq:
-            return build_answer_response(faq)
-
-        # Try symptom-based QA fallback (e.g. "what are loose motions")
-        if symptoms:
-            for s in symptoms[:2]:
-                fallback = qa_matcher.get_answer(f"what causes {s}")
-                if fallback:
-                    return build_answer_response(fallback)
-            # Try disease prediction as last resort
-            pred = predictor.predict(symptoms, user_text=user_message)
-            if pred.get("ml_reliable") or pred.get("response_eligible"):
-                return build_disease_response(pred)
-
-        return build_need_more_details_response(
-            "I couldn't find information on that. Try asking a specific medical question like "
-            "'What causes diabetes?' or 'What are symptoms of malaria?'"
-        )
 
     # ── Symptom report ────────────────────────────────────────────────────────
     if intent == "symptom":
@@ -160,40 +179,63 @@ def _route(user_message: str, intent: str, symptoms: list[str]) -> dict:
                 "fever, cough, headache, chest pain, vomiting, diarrhea."
             )
 
-        # Urgent single symptoms — always respond immediately
+        # Urgent single symptoms
         urgent_hits = [s for s in symptoms if s in URGENT_SINGLE_SYMPTOMS]
         if urgent_hits and len(symptoms) == 1:
             return build_urgent_symptom_response(urgent_hits)
 
+        # FIX: If model not trained, say so clearly — do NOT fall back to QA
+        if not MODEL_READY:
+            return build_model_not_ready_response(symptoms)
+
         # Run ML prediction
-        pred = predictor.predict(symptoms, user_text=user_message)
+        result = _run_prediction(symptoms, user_message)
+        if result:
+            return result
 
-        if pred.get("ml_reliable"):
-            return build_disease_response(pred)
-
-        if pred.get("response_eligible"):
-            return build_disease_response(pred)
-
-        # Even if not reliable, if we matched at least 1 feature, show pattern
-        if pred.get("matched_feature_count", 0) >= 1 and pred.get("confidence", 0) >= 0.02:
-            return build_pattern_response(pred)
-
-        # QA fallback for single symptom
-        for s in symptoms[:2]:
-            info = qa_matcher.get_answer(f"what causes {s}")
-            if info:
-                return build_answer_response(info)
-
+        # Not enough confidence even from ML — ask for more symptoms
         return build_need_more_details_response(
             "I need more details for a reliable prediction. "
             "Please describe 2-3 symptoms, for example: fever, headache, and cough."
         )
 
-    # ── Unknown intent — try both QA and symptom ─────────────────────────────
+    # ── Medical question ──────────────────────────────────────────────────────
+    if intent == "question":
+        # FIX: If user is asking "what disease could this be" with symptoms,
+        # run disease prediction FIRST (it's really a symptom check in question form)
+        if symptoms and _is_disease_query(user_message):
+            if not MODEL_READY:
+                return build_model_not_ready_response(symptoms)
+            result = _run_prediction(symptoms, user_message)
+            if result:
+                return result
+
+        # Genuine informational question — use QA
+        faq = qa_matcher.get_answer(user_message)
+        if faq:
+            return build_answer_response(faq)
+
+        # FIX: QA failed but we have symptoms — try disease prediction
+        # (covers "what should I do for fever and cough?" type queries)
+        if symptoms:
+            if not MODEL_READY:
+                return build_model_not_ready_response(symptoms)
+            result = _run_prediction(symptoms, user_message)
+            if result:
+                return result
+
+        return build_need_more_details_response(
+            "I couldn't find information on that. Try asking a specific medical question like "
+            "'What causes diabetes?' or 'What are symptoms of malaria?'"
+        )
+
+    # ── Unknown intent ────────────────────────────────────────────────────────
     if symptoms:
-        pred = predictor.predict(symptoms, user_text=user_message)
-        if pred.get("ml_reliable") or pred.get("response_eligible"):
-            return build_disease_response(pred)
+        if not MODEL_READY:
+            return build_model_not_ready_response(symptoms)
+        result = _run_prediction(symptoms, user_message)
+        if result:
+            return result
 
     faq = qa_matcher.get_answer(user_message)
     if faq:

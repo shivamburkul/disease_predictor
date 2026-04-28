@@ -131,7 +131,7 @@ def detect_intent(message: str, has_symptoms: bool) -> str:
 
     # has_symptoms flag set by extractor
     if has_symptoms:
-        # But if phrased as a question about a disease, it's a question
+        # If phrased as an informational/educational question about a disease, it's a question
         info_starters = [
             r"^tell me (about|regarding)\b",
             r"^explain\b", r"^define\b",
@@ -140,12 +140,14 @@ def detect_intent(message: str, has_symptoms: bool) -> str:
         ]
         if any(re.match(p, msg) for p in info_starters):
             return "question"
-        # Advice question
+        # FIX: "what should I do for my fever/cough" = symptom intent, not question.
+        # The user IS reporting symptoms and wants a diagnosis/advice,
+        # so route to symptom handler where the ML model runs FIRST.
         if any(re.search(p, msg) for p in [
             r"\bwhat should i do\b", r"\bwhat to do\b",
             r"\bhow to treat\b", r"\bhow to manage\b", r"\bhow can i\b",
         ]):
-            return "question"
+            return "symptom"   # was "question" — caused QA to override disease predictor
         return "symptom"
 
     is_vague = any(re.search(p, msg) for p in VAGUE_UNWELL)
